@@ -13,8 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Modifications Copyright 2024 Vinay Mathew.
-# Adapted for AlphaFold 3 and Singularity execution based on AF2 example.
+# Modifications Copyright 2024 EpiGenomicsCode
 
 """Singularity launch script for AlphaFold 3 Singularity image."""
 
