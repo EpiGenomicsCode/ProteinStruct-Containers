@@ -1,0 +1,203 @@
+Bootstrap: docker
+From: nvidia/cuda:12.6.0-runtime-ubuntu22.04
+Stage: spython-base
+
+%post
+# Install essential build tools and dependencies
+apt-get update && \\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \\
+    ca-certificates \\
+    wget \\
+    git \\
+    gcc \\
+    g++ \\
+    make \\
+    zlib1g-dev \\
+    zstd \\
+    software-properties-common \\
+    cmake \\
+    ninja-build \\
+    && rm -rf /var/lib/apt/lists/* \\
+    && apt-get clean
+
+# Install Python 3.11 
+add-apt-repository ppa:deadsnakes/ppa && \\
+    DEBIAN_FRONTEND=noninteractive apt-get update && \\
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \\
+    python3.11 \\
+    python3-pip \\
+    python3.11-venv \\
+    python3.11-dev \\
+    && rm -rf /var/lib/apt/lists/* \\
+    && apt-get clean
+
+# Create Python virtual environment
+python3.11 -m venv /alphafold3_venv
+export PATH="/hmmer/bin:/alphafold3_venv/bin:$PATH"
+
+# Update pip and install build tools
+/alphafold3_venv/bin/pip install --upgrade pip setuptools wheel
+
+# Install HMMER (as in the original Dockerfile)
+mkdir /hmmer_build /hmmer && \\
+    wget http://eddylab.org/software/hmmer/hmmer-3.4.tar.gz --directory-prefix /hmmer_build && \\
+    (cd /hmmer_build && tar zxf hmmer-3.4.tar.gz && rm hmmer-3.4.tar.gz) && \\
+    (cd /hmmer_build/hmmer-3.4 && ./configure --prefix /hmmer) && \\
+    (cd /hmmer_build/hmmer-3.4 && make -j32) && \\
+    (cd /hmmer_build/hmmer-3.4 && make install) && \\
+    (cd /hmmer_build/hmmer-3.4/easel && make install) && \\
+    rm -R /hmmer_build
+
+# Clone AlphaFold 3 repository
+git clone https://github.com/google-deepmind/alphafold3.git /alphafold3
+cd /alphafold3
+
+# Create a modified version of dev-requirements.txt without the triton dependency
+grep -v "triton==" dev-requirements.txt > dev-requirements-no-triton.txt
+
+# Install dev requirements except triton
+/alphafold3_venv/bin/pip install -r dev-requirements-no-triton.txt
+
+# Special handling for Triton on ARM64
+echo "Installing Triton 3.1.0 from source using release/3.1.x branch..."
+
+# Install build dependencies
+/alphafold3_venv/bin/pip install ninja cmake wheel build pytest
+
+# Install required dependencies for Triton
+/alphafold3_venv/bin/pip install pybind11 numpy
+
+# Install PyTorch (required by Triton)
+/alphafold3_venv/bin/pip install torch
+
+# Clone and build Triton from source
+cd /tmp && \\
+git clone https://github.com/triton-lang/triton.git && \\
+cd triton && \\
+git checkout release/3.1.x && \\
+# Install the package (standard install)
+/alphafold3_venv/bin/pip install ./python --no-build-isolation && \\
+# Simple verification - just make sure it's importable
+/alphafold3_venv/bin/python -c "import triton; print('Triton can be imported')" && \\
+# Clean up triton source
+cd / && rm -rf /tmp/triton
+
+# Install jax-triton from source with debugging
+echo "Installing jax-triton from source..."
+cd /tmp && \\
+git clone https://github.com/jax-ml/jax-triton.git && \\
+cd jax-triton && \\
+git checkout v0.2.0 && \\
+# Install jax-triton in development mode
+/alphafold3_venv/bin/pip install -e . && \\
+# Verify jax-triton installation
+/alphafold3_venv/bin/python -c "import jax_triton; print('jax-triton successfully imported')" && \\
+# Move source to reference location
+mkdir -p /opt/jax-triton && \\
+cp -r /tmp/jax-triton/* /opt/jax-triton/ && \\
+rm -rf /tmp/jax-triton
+
+# Add JAX environment variables and path for jax-triton
+export JAX_ENABLE_FLASH_ATTENTION=true
+export JAX_TRITON_FUSION_COMPILER=triton
+export PYTHONPATH="/opt/jax-triton"
+
+# Build JAX v0.4.34 from source for CUDA 12
+echo "Building JAX v0.4.34 from source for CUDA 12..."
+cd /tmp && \\
+git clone https://github.com/jax-ml/jax.git && \\
+cd jax && \\
+git checkout jax-v0.4.34 && \\
+python build/build.py --enable_cuda --cuda_version=12.4 --bazel_options=--verbose_failures --wheels=jaxlib,jax-cuda12-plugin,jax-cuda12-pjrt && \\
+# Install the built wheels
+/alphafold3_venv/bin/pip install dist/*.whl && \\
+# Install JAX python package itself
+/alphafold3_venv/bin/pip install -e . && \\
+# Verify JAX installation and CUDA backend
+/alphafold3_venv/bin/python -c "import jax; print('JAX version:', jax.__version__); print('JAX devices:', jax.devices())" || echo 'JAX verification failed' && \\
+# Clean up JAX source
+cd / && rm -rf /tmp/jax
+
+# Use CMake to build any C++ components
+mkdir -p /alphafold3/build
+cd /alphafold3/build
+cmake .. -G Ninja -DCMAKE_BUILD_PARALLEL_LEVEL=32
+ninja -j32
+
+# Install AlphaFold 3 package
+cd /alphafold3
+/alphafold3_venv/bin/pip install --no-deps .
+
+# Build chemical components database
+/alphafold3_venv/bin/build_data
+
+# Create directories for input and output data
+mkdir -p /root/af_input /root/af_output /root/models /root/public_databases
+
+# Simple verification that Triton is available
+echo "Verifying Triton is importable..."
+/alphafold3_venv/bin/python -c "import triton; print('SUCCESS: Triton module can be imported')"
+
+# Verify jax and jax-triton integration
+echo "Verifying JAX and jax-triton integration..."
+/alphafold3_venv/bin/python -c "import jax; import jax_triton; print('SUCCESS: JAX version:', jax.__version__, 'with jax-triton')" || \\
+  echo "WARNING: JAX and jax-triton integration verification failed, but continuing..."
+
+# Create activation script with optimizations for Grace Hopper GPUs
+cat > /alphafold3_activate.sh << 'EOF'
+#!/bin/bash
+export PATH="/hmmer/bin:/alphafold3_venv/bin:$PATH"
+export PYTHONPATH="/opt/jax-triton:/alphafold3"
+# Memory settings optimized for Grace Hopper H100 GPUs with 96GB memory
+export XLA_FLAGS="--xla_gpu_enable_triton_gemm=false"
+export XLA_PYTHON_CLIENT_PREALLOCATE=true
+export XLA_CLIENT_MEM_FRACTION=0.95
+# Triton settings
+export TRITON_CACHE_DIR=/root/.triton
+export TRITON_DISABLE_LINE_INFO=1
+# Properly find Triton
+export JAX_ENABLE_FLASH_ATTENTION=true
+export JAX_TRITON_FUSION_COMPILER=triton
+EOF
+
+chmod +x /alphafold3_activate.sh
+
+%environment
+export PATH="/hmmer/bin:/alphafold3_venv/bin:$PATH"
+export PYTHONPATH="/opt/jax-triton:/alphafold3"
+# Memory settings optimized for Grace Hopper H100 GPUs with 96GB memory
+export XLA_FLAGS="--xla_gpu_enable_triton_gemm=false"
+export XLA_PYTHON_CLIENT_PREALLOCATE=true
+export XLA_CLIENT_MEM_FRACTION=0.95
+# Triton settings
+export TRITON_CACHE_DIR=/root/.triton
+export TRITON_DISABLE_LINE_INFO=1
+# Properly find Triton
+export JAX_ENABLE_FLASH_ATTENTION=true
+export JAX_TRITON_FUSION_COMPILER=triton
+
+%runscript
+. /alphafold3_activate.sh
+cd /alphafold3
+exec python3 run_alphafold.py "$@"
+
+%labels
+    Version v1.0
+    Description "AlphaFold 3 container for DeltaAI with Grace Hopper GPUs"
+
+%help
+This container provides AlphaFold 3 optimized for NVIDIA Grace Hopper (GH200) superchips on DeltaAI.
+To run this container, you will need access to the AlphaFold 3 model weights from Google DeepMind.
+Follow the instructions at https://github.com/google-deepmind/alphafold3 to request access.
+
+Example usage on DeltaAI:
+  singularity run --nv \\
+    --bind /path/to/af_input:/root/af_input \\
+    --bind /path/to/af_output:/root/af_output \\
+    --bind /path/to/models:/root/models \\
+    --bind /path/to/public_databases:/root/public_databases \\
+    alphafold3.sif \\
+    --json_path=/root/af_input/fold_input.json \\
+    --model_dir=/root/models \\
+    --output_dir=/root/af_output \
+    --db_dir=/root/public_databases 
