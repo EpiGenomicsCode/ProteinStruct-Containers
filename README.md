@@ -41,11 +41,10 @@ AlphaFold 3 requires large sequence and structure databases to function.
 
 ## Pre-built Container (Sylabs Cloud)
 
-A pre-built Singularity image file (`.sif`) based on this definition may be available on Sylabs Cloud:
+A pre-built Singularity image file (`.sif`) based on this definition is available on Sylabs Cloud:
 
 *   **Link:** [Sylabs Cloud Link Placeholder - To Be Added]
 
-Using the pre-built container can save you the time and resources needed for building it yourself.
 
 ## Building the Container
 
