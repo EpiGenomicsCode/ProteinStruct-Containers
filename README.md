@@ -1,6 +1,6 @@
 # AlphaFold 3 Singularity Container Build
 
-This repository contains scripts to build a Singularity container for AlphaFold 3, optimized for both **ARM64** and **x86** systems with NVIDIA GPUs. This setup has been tested on NVIDIA GPUs.
+This repository contains scripts to build a Singularity container for AlphaFold 3, optimized for both **ARM64** and **x86** systems with NVIDIA GPUs. This setup has been tested on NVIDIA GPUs for both ARM and x86 based systems.
 
 ## Architecture Overview
 
