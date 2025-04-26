@@ -69,6 +69,46 @@ A pre-built Singularity image file (`.sif`) based on this definition is availabl
 
 4.  **Locate the Container**: Upon successful completion, the container image (`alphafold3_arm.sif` or `alphafold3_x86.sif`, depending on your architecture choice) will be located in the build directory you specified when submitting the job.
 
+## CUDA Version Compatibility
+
+> ⚠️ **Important**: The definition files have the CUDA version hardcoded (currently set to CUDA 12.6.0).
+
+This might cause compatibility issues if your host system uses a different CUDA version. You have two options:
+
+1. **Modify the Definition File**: Edit the `From:` line in the definition file to match your system's CUDA version:
+   ```
+   Bootstrap: docker
+   From: nvidia/cuda:XX.X.X-runtime-ubuntu22.04
+   ```
+   Replace `XX.X.X` with your system's CUDA version.
+
+2. **Use Environment Variables**: Override default settings when running the container to prevent CUDA errors.
+
+### System Requirements
+
+- NVIDIA Driver version 525.60.13 or newer
+- GPU with at least 8GB VRAM (16GB+ recommended)
+- Singularity/Apptainer 3.8.0 or newer
+
+### Advanced Configuration
+
+The container automatically configures itself for the available GPU hardware. To override automatic settings or address CUDA compatibility issues, you can set environment variables when running:
+
+```bash
+singularity run --nv \
+  -e XLA_CLIENT_MEM_FRACTION=0.85 \
+  -e XLA_PYTHON_CLIENT_PREALLOCATE=false \
+  -e JAX_ENABLE_FLASH_ATTENTION=false \
+  ... rest of command ...
+```
+
+### Troubleshooting
+
+- If you encounter CUDA errors, try updating your NVIDIA drivers to the latest version
+- For memory errors, decrease the `XLA_CLIENT_MEM_FRACTION` value (e.g., 0.75 or 0.5)
+- Some systems may need to use `apptainer` instead of `singularity` command
+- If you continue experiencing CUDA version mismatches, rebuilding the container with the matching CUDA version is recommended
+
 ## Running the Container
 
 Refer to the `%help` section within the definition files (`alphafold3_arm.def` or `alphafold3_x86.def`) for architecture-specific instructions on running the built containers.
