@@ -183,14 +183,14 @@ exec python3 run_alphafold.py "$@"
 
 %labels
     Version v1.0
-    Description "AlphaFold 3 container for DeltaAI with Grace Hopper GPUs"
+    Description "AlphaFold 3 container for ARM based systems with Nvidia GPUs"
 
 %help
-This container provides AlphaFold 3 optimized for NVIDIA Grace Hopper (GH200) superchips on DeltaAI.
+This container provides AlphaFold 3 optimized for NVIDIA GPUs on ARM based systems.
 To run this container, you will need access to the AlphaFold 3 model weights from Google DeepMind.
 Follow the instructions at https://github.com/google-deepmind/alphafold3 to request access.
 
-Example usage on DeltaAI:
+Example usage:
   singularity run --nv \\
     --bind /path/to/af_input:/root/af_input \\
     --bind /path/to/af_output:/root/af_output \\
