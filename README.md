@@ -83,15 +83,6 @@ This might cause compatibility issues if your host system uses a different CUDA 
    Replace `XX.X.X` with your system's CUDA version.
 
 2. **Use Environment Variables**: Override default settings when running the container to prevent CUDA errors.
-
-### System Requirements
-
-- NVIDIA Driver version 525.60.13 or newer
-- GPU with at least 8GB VRAM (16GB+ recommended)
-- Singularity/Apptainer 3.8.0 or newer
-
-### Advanced Configuration
-
 The container automatically configures itself for the available GPU hardware. To override automatic settings or address CUDA compatibility issues, you can set environment variables when running:
 
 ```bash
@@ -100,6 +91,26 @@ singularity run --nv \
   -e XLA_PYTHON_CLIENT_PREALLOCATE=false \
   -e JAX_ENABLE_FLASH_ATTENTION=false \
   ... rest of command ...
+```
+
+Alternatively, you can set these environment variables before running Singularity (often more reliable):
+
+```bash
+# Performance and memory management
+export SINGULARITYENV_XLA_FLAGS="--xla_gpu_enable_triton_gemm=false"
+export SINGULARITYENV_XLA_PYTHON_CLIENT_PREALLOCATE=true
+export SINGULARITYENV_XLA_CLIENT_MEM_FRACTION=0.95
+
+# GPU visibility and capabilities
+export SINGULARITYENV_NVIDIA_DRIVER_CAPABILITIES=compute,utility
+export SINGULARITYENV_NVIDIA_VISIBLE_DEVICES=all
+export SINGULARITYENV_CUDA_VISIBLE_DEVICES=0
+
+# Path settings
+export SINGULARITYENV_PYTHONPATH="/alphafold3"
+
+# Then run your container
+singularity run --nv alphafold3_x86.sif ...
 ```
 
 ### Troubleshooting
