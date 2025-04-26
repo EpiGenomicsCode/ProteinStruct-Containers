@@ -17,21 +17,33 @@
 
 # Check if arguments are provided
 if [ -z "$1" ] || [ -z "$2" ]; then
-    echo "Error: Please provide the Singularity definition file path as the first argument"
+    echo "Error: Please provide the architecture (arm or x86) as the first argument"
     echo "       and the desired build directory path as the second argument."
-    echo "Usage: sbatch $0 <definition_file> <build_directory>"
+    echo "Usage: sbatch $0 <architecture> <build_directory>"
+    echo "       where <architecture> is either 'arm' or 'x86'"
     exit 1
 fi
-DEFINITION_FILE=$1
+
+ARCH=$1
 BUILD_DIR=$2
+
+# Determine the appropriate definition file based on architecture
+if [ "${ARCH}" = "arm" ]; then
+    DEFINITION_FILE="/Users/vinay/AF3-Container/alphafold3_arm.def"
+    echo "Using ARM64 definition file: ${DEFINITION_FILE}"
+elif [ "${ARCH}" = "x86" ]; then
+    DEFINITION_FILE="/Users/vinay/AF3-Container/alphafold3_x86.def"
+    echo "Using x86 definition file: ${DEFINITION_FILE}"
+else
+    echo "Error: Architecture must be either 'arm' or 'x86'"
+    exit 1
+fi
 
 # Set and create the build directory
 mkdir -p "${BUILD_DIR}"
 
-# Definition file (passed as $1) is assumed to exist relative to the submission directory or as an absolute path
-
 # Build the Singularity container
 cd "${BUILD_DIR}"
 echo "Building container using definition file: ${DEFINITION_FILE}"
-echo "Output container (alphafold3.sif) will be placed in: ${BUILD_DIR}"
-singularity build --force alphafold3.sif "${DEFINITION_FILE}" 
+echo "Output container (alphafold3_${ARCH}.sif) will be placed in: ${BUILD_DIR}"
+singularity build --force alphafold3_${ARCH}.sif "${DEFINITION_FILE}" 

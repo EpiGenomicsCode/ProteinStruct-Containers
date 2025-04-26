@@ -1,8 +1,6 @@
 # AlphaFold 3 Singularity Container Build
 
-This repository contains scripts to build a Singularity container for AlphaFold 3, currently optimized for **ARM64 systems with NVIDIA GPUs** (like NVIDIA Grace Hopper), and a Python launcher script to run predictions. This setup has been tested on NVIDIA GPUs.
-
-*Note: An x86-compatible definition file is planned for future release.*
+This repository contains scripts to build a Singularity container for AlphaFold 3, optimized for both **ARM64** and **x86** systems with NVIDIA GPUs. This setup has been tested on NVIDIA GPUs.
 
 ## Architecture Overview
 
@@ -37,7 +35,9 @@ AlphaFold 3 requires large sequence and structure databases to function.
 ## Files
 
 -   `build_af3.slurm`: SLURM batch script to build the Singularity container. **Requires user modification.**
--   `alphafold3.def`: Singularity definition file (ARM64 NVIDIA optimized) detailing the container setup.
+-   `alphafold3_arm.def`: Singularity definition file optimized for ARM64 systems with NVIDIA GPUs (e.g., Grace Hopper).
+-   `alphafold3_x86.def`: Singularity definition file for x86 systems with NVIDIA GPUs.
+-   `run_alphafold3_launcher.py`: Python script for convenient execution of the container.
 
 ## Pre-built Container (Sylabs Cloud)
 
@@ -54,24 +54,25 @@ Using the pre-built container can save you the time and resources needed for bui
     *   `#SBATCH --account=YOUR_ACCOUNT`: Set this to your SLURM allocation/account name.
     *   *(Optional)* Adjust other SBATCH directives (like `--time`, `--mem`, `--cpus-per-task`, `--gres`) as needed for your environment and resource limits.
 
-2.  **Ensure the Definition File Exists**: Make sure the `alphafold3.def` file is present in your working directory or provide an absolute path when submitting.
-
-3.  **Submit the SLURM Job**: Use the `sbatch` command to submit the build job, passing the path to the definition file as the first argument and the desired build directory as the second argument.
+2.  **Submit the SLURM Job**: Use the `sbatch` command to submit the build job, specifying the target architecture (`arm` or `x86`) and the desired build directory.
 
     ```bash
-    sbatch build_af3.slurm alphafold3.def /path/to/your/build/directory
+    sbatch build_af3.slurm arm /path/to/your/build/directory
+    ```
+    
+    Or for x86 systems:
+    
+    ```bash
+    sbatch build_af3.slurm x86 /path/to/your/build/directory
     ```
 
-    *Replace `alphafold3.def` with the actual path to your definition file if it's different or located elsewhere.*
-    *Replace `/path/to/your/build/directory` with the desired location for the final container image.*
+3.  **Monitor the Build**: Check the output and error files (e.g., `alphafold3_build_*.out`, `alphafold3_build_*.err`, where `*` is the job ID) for progress and potential issues.
 
-4.  **Monitor the Build**: Check the output and error files (e.g., `alphafold3_build_*.out`, `alphafold3_build_*.err`, where `*` is the job ID) for progress and potential issues.
-
-5.  **Locate the Container**: Upon successful completion, the container image (`alphafold3.sif`) will be located in the build directory you specified when submitting the job.
+4.  **Locate the Container**: Upon successful completion, the container image (`alphafold3_arm.sif` or `alphafold3_x86.sif`, depending on your architecture choice) will be located in the build directory you specified when submitting the job.
 
 ## Running the Container
 
-Refer to the `%help` section within the `alphafold3.def` file for instructions on how to run the built container.
+Refer to the `%help` section within the definition files (`alphafold3_arm.def` or `alphafold3_x86.def`) for architecture-specific instructions on running the built containers.
 
 ## Running Predictions (using Launcher Script)
 
@@ -80,12 +81,12 @@ The `run_alphafold3_launcher.py` script provides a convenient way to run predict
 1.  **Prerequisites:**
     *   Python 3.x
     *   `spython` and `absl-py` Python libraries: `pip install spython absl-py`
-    *   A built `alphafold3.sif` container (see Building the Container section).
+    *   A built Singularity container for your architecture (`alphafold3_arm.sif` or `alphafold3_x86.sif`).
     *   Downloaded AlphaFold 3 model parameters.
     *   Downloaded databases (see Database Download section).
 
 2.  **Configuration:**
-    *   Ensure the `_ALPHAFOLD3_SIF_PATH` variable inside `run_alphafold3_launcher.py` points to your `alphafold3.sif` file, OR set the `ALPHAFOLD3_SIF` environment variable.
+    *   Update the `_ALPHAFOLD3_SIF_PATH` variable inside `run_alphafold3_launcher.py` to point to your appropriate architecture-specific SIF file, OR set the `ALPHAFOLD3_SIF` environment variable.
 
 3.  **Execution:**
     ```bash
