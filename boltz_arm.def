@@ -1,0 +1,86 @@
+Bootstrap: docker
+From: arm64v8/ubuntu:22.04
+
+%environment
+  export PATH="/opt/conda/bin:$PATH"
+  source /opt/conda/etc/profile.d/conda.sh
+  conda activate boltz
+  export PYTHONNOUSERSITE=1
+  export BOLTZ_CACHE=/opt/boltz_cache
+
+%post
+  apt-get update && \
+  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      build-essential git wget curl ca-certificates \
+      python3-pip python3.10 python3.10-dev python3.10-venv \
+      g++ gcc pkg-config clang cmake ninja-build libopenblas-dev \
+      autoconf automake libtool m4 patchelf && \
+  rm -rf /var/lib/apt/lists/*
+
+  ln -sf /usr/bin/python3.10 /usr/local/bin/python3
+  ln -sf /usr/bin/python3.10 /usr/local/bin/python
+
+  export PATH="/opt/conda/bin:$PATH"
+  MINIFORGE_VER=24.11.0-0
+  curl -L -o /tmp/mf.sh \
+     https://github.com/conda-forge/miniforge/releases/download/${MINIFORGE_VER}/Miniforge3-${MINIFORGE_VER}-Linux-aarch64.sh
+  bash /tmp/mf.sh -b -p /opt/conda && rm /tmp/mf.sh
+  eval "$(/opt/conda/bin/conda shell.bash hook)"
+  
+  mamba create -y -n boltz python=3.12
+  conda activate boltz
+
+  /opt/conda/envs/boltz/bin/python -m pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/test \
+      torch==2.7.0+cu128 torchvision==0.22.0 torchaudio==2.7.0 triton==3.3.0
+
+  mamba install -y -c conda-forge \
+      numpy==1.26.3 scipy==1.13.1 pandas==2.2.3 \
+      hydra-core==1.3.2 \
+      numba==0.61.0 llvmlite \
+      patchelf # Kept from user edit
+
+  /opt/conda/envs/boltz/bin/python -m pip install --no-cache-dir pytorch-lightning==2.4.0
+
+  /opt/conda/envs/boltz/bin/python -m pip install --no-cache-dir \
+      rdkit==2024.3.2 \
+      dm-tree==0.1.8 \
+      requests==2.32.3 types-requests \
+      einops==0.8.0 einx==0.3.0 fairscale==0.4.13 \
+      mashumaro==3.14 modelcif==1.2 wandb==0.18.7 \
+      click==8.1.7 pyyaml==6.0.2 biopython==1.84 \
+      trifast>=0.1.11
+
+  /opt/conda/envs/boltz/bin/python -m pip install --no-cache-dir \
+        --no-build-isolation \
+        boltz==1.0.0
+
+  mkdir -p /opt/boltz_cache
+  wget -q -O /opt/boltz_cache/ccd.pkl \
+       https://huggingface.co/boltz-community/boltz-1/resolve/main/ccd.pkl
+  wget -q -O /opt/boltz_cache/boltz1_conf.ckpt \
+       https://huggingface.co/boltz-community/boltz-1/resolve/main/boltz1_conf.ckpt
+  chmod -R a+r /opt/boltz_cache
+  echo "Boltz cache and assets setup complete."
+
+  mamba clean -y --all
+
+%runscript
+  #!/bin/bash
+  source /opt/conda/etc/profile.d/conda.sh
+  conda activate boltz
+
+  CONDA_ENV_LIB_DIR="/opt/conda/envs/boltz/lib"
+  if [ -d "${CONDA_ENV_LIB_DIR}" ]; then
+    export LD_LIBRARY_PATH="${CONDA_ENV_LIB_DIR}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+  fi
+  
+  exec "$@"
+
+%help
+  This container provides Boltz v1.0.0 for NVIDIA aarch64 architectures (GH200 optimized).
+  Uses Python 3.12. PyTorch, Torchvision, Torchaudio, Triton installed via pip from test index.
+  Pytorch-Lightning installed via pip afterwards.
+  Includes model weights. GPU acceleration enabled.
+
+  To run:
+  singularity exec --nv <path_to_sif> boltz <boltz_args>

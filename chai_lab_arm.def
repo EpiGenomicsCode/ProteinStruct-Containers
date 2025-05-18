@@ -1,0 +1,65 @@
+Bootstrap: docker
+From: nvcr.io/nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04 
+
+%post
+    set -eux
+
+    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        python3.10 \
+        python3-pip \
+        git \
+        wget \
+        ca-certificates \
+        bash \
+        kalign && \
+    rm -rf /var/lib/apt/lists/*
+
+    ln -sf /usr/bin/python3.10 /usr/local/bin/python
+    ln -sf /usr/bin/pip3 /usr/local/bin/pip
+
+    python -m pip install --no-cache-dir -U pip
+
+    python -m pip install --no-cache-dir chai_lab==0.6.1 \
+        --extra-index-url https://download.pytorch.org/whl/cu121
+
+    CHAI_CACHE_DIR="/opt/chai_lab_downloads"
+    mkdir -p "${CHAI_CACHE_DIR}/esm"
+    mkdir -p "${CHAI_CACHE_DIR}/models_v2"
+    echo "Downloading conformers_v1.apkl..."
+    wget -q -O "${CHAI_CACHE_DIR}/conformers_v1.apkl" \
+        https://chaiassets.com/chai1-inference-depencencies/conformers_v1.apkl
+
+    wget -q -O "${CHAI_CACHE_DIR}/esm/traced_sdpa_esm2_t36_3B_UR50D_fp16.pt" \
+        https://chaiassets.com/chai1-inference-depencencies/esm2/traced_sdpa_esm2_t36_3B_UR50D_fp16.pt
+
+    CHAI_MODELS_BASE_URL="https://chaiassets.com/chai1-inference-depencencies/models_v2"
+
+    for model_comp in \
+        "feature_embedding.pt" \
+        "bond_loss_input_proj.pt" \
+        "token_embedder.pt" \
+        "trunk.pt" \
+        "diffusion_module.pt" \
+        "confidence_head.pt"
+    do
+        wget -O "${CHAI_CACHE_DIR}/models_v2/${model_comp}" \
+            "${CHAI_MODELS_BASE_URL}/${model_comp}"
+    done
+
+    chmod -R a+rX "${CHAI_CACHE_DIR}"
+
+%environment
+    # Point Chai-1 to the pre-downloaded assets
+    export CHAI_DOWNLOADS_DIR=/opt/chai_lab_downloads
+
+    # Set cache directories for numba and matplotlib to writable locations
+    export NUMBA_CACHE_DIR=/tmp/numba_cache
+    export MPLCONFIGDIR=/tmp/matplotlib_cache
+
+    unset LD_PRELOAD
+
+%runscript
+    echo "Chai-1 Lab Singularity container (ARM64 for Grace Hopper)"
+    echo "CHAI_DOWNLOADS_DIR is set to: ${CHAI_DOWNLOADS_DIR}"
+    echo "To run chai-lab, use a command like: singularity exec chai_lab_arm64.sif chai-lab fold ..."
+    exec "$@"
