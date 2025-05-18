@@ -41,8 +41,8 @@ Each model has specific requirements for databases and model weights.
 ### AlphaFold 3
 AlphaFold 3 requires large sequence and structure databases to function.
 
-**Requirement:** You must download these databases separately.
-**Recommendation:** Use the official script provided by Google DeepMind:
+**Requirement (Databases):** You must download these databases separately.
+**Recommendation (Databases):** Use the official script provided by Google DeepMind:
 
 1. Clone the official AlphaFold 3 repository:
    ```bash
@@ -56,6 +56,8 @@ AlphaFold 3 requires large sequence and structure databases to function.
    Replace `/path/to/your/database/storage` with the desired location.
 
 **Note:** The databases require significant disk space (~252 GB download, ~630 GB uncompressed). An SSD is recommended for better performance.
+
+**Requirement (Model Weights):** Access to the official AlphaFold3 model parameters requires registration for non-commercial use via the [AlphaFold 3 Model Parameters Request Form](https://docs.google.com/forms/d/e/1FAIpQLSfWZAgo1aYk0O4MuAXZj8xRQ8DafeFJnldNOnh_13qAx2ceZw/viewform). Ensure you meet the terms and download the weights to an accessible directory path.
 
 ### Boltz
 The Boltz container comes with pre-downloaded model weights (`ccd.pkl` and `boltz1_conf.ckpt`) stored in `/opt/boltz_cache` within the container. No separate download is required for the weights if using the container.
