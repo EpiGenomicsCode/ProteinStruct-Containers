@@ -65,17 +65,22 @@ The Chai-1 container also includes pre-downloaded model weights. Specific paths 
 
 ## Files
 
--   **AlphaFold 3:**
+This repository is structured as follows:
+
+-   `build_container.slurm`: SLURM batch script located in the root directory to build any of the Singularity containers. **Requires user modification for cluster settings.**
+-   `alphafold3/`: Directory containing files specific to AlphaFold 3.
     -   `alphafold3_arm.def`: Singularity definition file for ARM64 systems.
     -   `alphafold3_x86.def`: Singularity definition file for x86 systems.
-    -   `build_container.slurm`: SLURM batch script to build the Singularity container. **Requires user modification.**
-    -   `run_alphafold3_launcher.py`: Python script for convenient execution of the Singularity container.
--   **Boltz:**
+    -   `run_alphafold3_launcher.py`: Python script for convenient execution of the AlphaFold 3 container.
+-   `boltz/`: Directory containing files specific to Boltz.
     -   `boltz_arm.def`: Singularity definition file for ARM64 systems.
-    -   `boltz_x86.def`: Singularity definition file for x86 systems (Note: x86 pip install is available, this container offers a pre-configured environment with weights).
--   **Chai-1:**
-    -   `chai_lab_arm.def`: Singularity definition file for ARM64 systems.
-    -   `chai_lab_x86.def`: Singularity definition file for x86 systems.
+    -   `boltz_x86.def`: Singularity definition file for x86 systems.
+-   `chai_1/`: Directory containing files specific to Chai-1.
+    -   `chai_lab_arm.def`: Singularity definition file for ARM64 systems (note the `chai_lab` prefix).
+    -   `chai_lab_x86.def`: Singularity definition file for x86 systems (note the `chai_lab` prefix).
+-   `Arch.png`: Architecture diagram.
+-   `README.md`: This file.
+-   `LICENSE`: License file.
 
 ## Pre-built Containers (Sylabs Cloud)
 
@@ -85,43 +90,48 @@ A pre-built Singularity image file (`.sif`) based on this definition is availabl
 
 ## Building the Containers
 
-The `build_container.slurm` script can be used to build any of the model containers (AlphaFold 3, Boltz, Chai-1) on a SLURM-managed cluster. Alternatively, you can build them manually using Singularity commands.
+The `build_container.slurm` script (located in the repository root) can be used to build any of the model containers on a SLURM-managed cluster.
 
 ### Using the SLURM Script (`build_container.slurm`)
 
-1.  **Configure SLURM Script**: Before submitting, open `build_container.slurm` and ensure the following placeholder values are correctly set for your cluster environment:
+1.  **Navigate to the Repository Root**: Ensure your terminal is in the root directory of this repository where `build_container.slurm` is located.
+
+2.  **Configure SLURM Script**: Before submitting, open `build_container.slurm` and ensure the following placeholder values are correctly set for your cluster environment:
     *   `#SBATCH --partition=YOUR_PARTITION`: Set this to the appropriate SLURM partition/queue.
     *   `#SBATCH --account=YOUR_ACCOUNT`: Set this to your SLURM allocation/account name.
-    *   *(Optional)* You may want to adjust the job name, output/error file paths (e.g., `#SBATCH --job-name=my_build_job`, `#SBATCH --output=my_build_job_%j.out`). The script is set up to use variables like `${MODEL_NAME}` and `${ARCH}` in comments for these lines, but SLURM may not expand them from script variables; manual adjustment or generic names might be needed.
-    *   *(Optional)* Adjust other SBATCH directives (like `--time`, `--mem`, `--cpus-per-task`, `--gres`) as needed.
+    *   *(Optional)* Review and adjust other SBATCH directives like job name, output/error file paths, time, memory, CPUs, and GPUs as needed. The script uses variables like `${MODEL_DIR_NAME}` and `${ARCH}` in commented SBATCH lines for job name/output, but SLURM typically doesn't expand script variables in these directives directly. You might need to set them manually or use generic names.
 
-2.  **Submit the SLURM Job**: Use the `sbatch` command to submit the build job. You need to specify the model name, target architecture, and the desired build directory.
+3.  **Submit the SLURM Job**: Use the `sbatch` command to submit the build job. You need to specify the model's directory name, target architecture, and the desired build directory.
 
     ```bash
-    sbatch build_container.slurm <model_name> <architecture> /path/to/your/build/directory
+    sbatch build_container.slurm <model_directory_name> <architecture> /path/to/your/build/directory
     ```
 
     **Arguments:**
-    *   `<model_name>`: The name of the model to build (e.g., `alphafold3`, `boltz`, `chai_1` - note: use `chai_lab` for def file names `chai_lab_arm.def`/`chai_lab_x86.def`).
+    *   `<model_directory_name>`: The name of the model's directory (e.g., `alphafold3`, `boltz`, `chai_1`). This tells the script where to find the definition file.
     *   `<architecture>`: The target architecture (`arm` or `x86`).
-    *   `/path/to/your/build/directory`: The directory where the SIF file will be saved.
+    *   `/path/to/your/build/directory`: The directory where the SIF file will be saved. This path can be absolute or relative to the repository root.
 
     **Examples:**
 
-    To build Boltz for ARM:
+    To build Boltz for ARM, outputting to a `builds/` subdirectory in the repo root:
     ```bash
-    sbatch build_container.slurm boltz arm ./build_output
+    sbatch build_container.slurm boltz arm ./builds
     ```
 
-    To build AlphaFold 3 for x86:
+    To build AlphaFold 3 for x86, outputting to `/scratch/user/af3_build`:
     ```bash
-    sbatch build_container.slurm alphafold3 x86 ./build_output
+    sbatch build_container.slurm alphafold3 x86 /scratch/user/af3_build
     ```
 
-3.  **Monitor the Build**: Check the SLURM output and error files (e.g., `boltz_arm_build_*.out`, `alphafold3_x86_build_*.err`, where `*` is the job ID, assuming you've set the SBATCH directives accordingly) for progress and potential issues.
+    To build Chai-1 for ARM (using `chai_1` as the directory name, the script knows to look for `chai_lab_arm.def` inside `chai_1/`):
+    ```bash
+    sbatch build_container.slurm chai_1 arm ./builds
+    ```
 
-4.  **Locate the Container**: Upon successful completion, the container image (e.g., `boltz_arm.sif`, `alphafold3_x86.sif`) will be located in the build directory you specified.
+4.  **Monitor the Build**: Check the SLURM output and error files for progress and potential issues. The output SIF file will be named e.g., `boltz_arm.sif`, `alphafold3_x86.sif`, `chai_1_arm.sif`.
 
+5.  **Locate the Container**: Upon successful completion, the container image (e.g., `boltz_arm.sif`) will be located in the build directory you specified.
 
 ## CUDA Version Compatibility
 
@@ -156,21 +166,21 @@ singularity exec --nv /path/to/your/<model_name>_<arch>.sif <command_specific_to
 
 ### Running AlphaFold 3 Predictions (using Launcher Script)
 
-The `run_alphafold3_launcher.py` script provides a convenient way to run predictions using the Singularity container.
+The `alphafold3/run_alphafold3_launcher.py` script provides a convenient way to run predictions using the AlphaFold 3 Singularity container.
 
 1.  **Prerequisites:**
     *   Python 3.x
     *   `spython` and `absl-py` Python libraries: `pip install spython absl-py`
-    *   A built Singularity container for your architecture (`alphafold3_arm.sif` or `alphafold3_x86.sif`).
+    *   A built Singularity container for your architecture (e.g., `alphafold3_arm.sif` or `alphafold3_x86.sif`), typically located in your specified build directory.
     *   Downloaded AlphaFold 3 model parameters.
     *   Downloaded databases (see Database Download section).
 
 2.  **Configuration:**
-    *   Update the `_ALPHAFOLD3_SIF_PATH` variable inside `run_alphafold3_launcher.py` to point to your appropriate architecture-specific SIF file, OR set the `ALPHAFOLD3_SIF` environment variable.
+    *   Update the `_ALPHAFOLD3_SIF_PATH` variable inside `alphafold3/run_alphafold3_launcher.py` to point to your appropriate architecture-specific SIF file, OR set the `ALPHAFOLD3_SIF` environment variable.
 
 3.  **Execution:**
     ```bash
-    python run_alphafold3_launcher.py \
+    python alphafold3/run_alphafold3_launcher.py \
         --json_path=/path/to/input.json \
         --model_dir=/path/to/model_params \
         --db_dir=/path/to/databases \
@@ -188,7 +198,7 @@ The `run_alphafold3_launcher.py` script provides a convenient way to run predict
     *   `--use_gpu`: Set to `false` to run without GPU (only data pipeline).
     *   `--run_data_pipeline=false`: Skip the data pipeline step.
     *   `--run_inference=false`: Skip the inference step.
-    *   Run `python run_alphafold3_launcher.py --help` to see all available options.
+    *   Run `python alphafold3/run_alphafold3_launcher.py --help` to see all available options.
 
 ### Running Boltz Predictions
 (TODO: Needs to be filled in)
