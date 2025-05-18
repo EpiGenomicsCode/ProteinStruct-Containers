@@ -1,0 +1,31 @@
+Bootstrap: docker
+From: nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+
+%post
+  set -eux
+  apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        python3.10 python3-pip git wget ca-certificates && \
+        rm -rf /var/lib/apt/lists/*
+
+  ln -sf /usr/bin/python3.10 /usr/local/bin/python
+  python -m pip install --no-cache-dir -U pip
+
+  python -m pip install --no-cache-dir boltz -U \
+        --extra-index-url https://download.pytorch.org/whl/cu121
+
+  mkdir -p /opt/boltz_cache
+  wget -q -O /opt/boltz_cache/ccd.pkl \
+       https://huggingface.co/boltz-community/boltz-1/resolve/main/ccd.pkl
+  wget -q -O /opt/boltz_cache/boltz1_conf.ckpt \
+       https://huggingface.co/boltz-community/boltz-1/resolve/main/boltz1_conf.ckpt
+  chmod -R a+r /opt/boltz_cache
+
+%environment
+  export BOLTZ_CACHE=/opt/boltz_cache
+  export NUMBA_CACHE_DIR=/tmp/numba
+  export CC=/usr/bin/gcc
+  unset LD_PRELOAD        
+
+%runscript
+  echo "Boltz‑1 container – CUDA visible through Singularity"
+  exec "$@"
