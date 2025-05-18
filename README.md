@@ -78,9 +78,6 @@ This repository is structured as follows:
 -   `chai_1/`: Directory containing files specific to Chai-1.
     -   `chai_lab_arm.def`: Singularity definition file for ARM64 systems (note the `chai_lab` prefix).
     -   `chai_lab_x86.def`: Singularity definition file for x86 systems (note the `chai_lab` prefix).
--   `Arch.png`: Architecture diagram.
--   `README.md`: This file.
--   `LICENSE`: License file.
 
 ## Pre-built Containers (Sylabs Cloud)
 
@@ -112,26 +109,12 @@ The `build_container.slurm` script (located in the repository root) can be used 
     *   `<architecture>`: The target architecture (`arm` or `x86`).
     *   `/path/to/your/build/directory`: The directory where the SIF file will be saved. This path can be absolute or relative to the repository root.
 
-    **Examples:**
-
-    To build Boltz for ARM, outputting to a `builds/` subdirectory in the repo root:
-    ```bash
-    sbatch build_container.slurm boltz arm ./builds
-    ```
+    **Example:**
 
     To build AlphaFold 3 for x86, outputting to `/scratch/user/af3_build`:
     ```bash
     sbatch build_container.slurm alphafold3 x86 /scratch/user/af3_build
     ```
-
-    To build Chai-1 for ARM (using `chai_1` as the directory name, the script knows to look for `chai_lab_arm.def` inside `chai_1/`):
-    ```bash
-    sbatch build_container.slurm chai_1 arm ./builds
-    ```
-
-4.  **Monitor the Build**: Check the SLURM output and error files for progress and potential issues. The output SIF file will be named e.g., `boltz_arm.sif`, `alphafold3_x86.sif`, `chai_1_arm.sif`.
-
-5.  **Locate the Container**: Upon successful completion, the container image (e.g., `boltz_arm.sif`) will be located in the build directory you specified.
 
 ## CUDA Version Compatibility
 
