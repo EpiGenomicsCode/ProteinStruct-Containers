@@ -85,6 +85,11 @@ This repository is structured as follows:
 
 Pre-built Singularity image files (`.sif`) based on these definitions are available on Sylabs Cloud. You can pull them directly using the following commands:
 
+**Note:** To verify the authenticity of the containers, please verify the key using:
+```bash
+singularity key import keys/mypublic.pem
+```
+
 ### AlphaFold 3
 ```bash
 # ARM64 architecture
