@@ -83,9 +83,34 @@ This repository is structured as follows:
 
 ## Pre-built Containers (Sylabs Cloud)
 
-A pre-built Singularity image file (`.sif`) based on this definition is available on Sylabs Cloud:
+Pre-built Singularity image files (`.sif`) based on these definitions are available on Sylabs Cloud. You can pull them directly using the following commands:
 
-*   **Link:** [Sylabs Cloud Link Placeholder - To Be Added]
+### AlphaFold 3
+```bash
+# ARM64 architecture
+singularity pull --arch arm64 library://vinaymatt/repo/alphafold3:arm64
+
+# x86_64 architecture  
+singularity pull --arch amd64 library://vinaymatt/repo/alphafold3:amd64
+```
+
+### Boltz
+```bash
+# ARM64 architecture
+singularity pull --arch arm64 library://boltzarm/repo/boltzarm:arm64
+
+# x86_64 architecture
+singularity pull --arch amd64 library://boltzx86/repo/boltzx86:latest
+```
+
+### Chai-1
+```bash
+# ARM64 architecture
+singularity pull --arch arm64 library://chai_labarm/repo/chai_lab:arm64
+
+# x86_64 architecture
+singularity pull --arch amd64 library://chaix86/repo/chai_lab:amd64
+```
 
 ## Building the Containers
 
