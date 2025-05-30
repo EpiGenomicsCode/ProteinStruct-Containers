@@ -1,65 +1,92 @@
 Bootstrap: docker
-From: nvcr.io/nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04 
+From: nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
+Stage: builder
 
 %post
     set -eux
 
+    export CUDA_HOME=/usr/local/cuda
+    export PATH=$CUDA_HOME/bin:$PATH
+    export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
+
     apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-        python3.10 \
-        python3-pip \
-        git \
-        wget \
-        ca-certificates \
-        bash \
-        kalign && \
+        build-essential git ninja-build cmake \
+        python3.10 python3.10-dev python3-pip \
+        libopenblas-dev libssl-dev libffi-dev && \
     rm -rf /var/lib/apt/lists/*
 
-    ln -sf /usr/bin/python3.10 /usr/local/bin/python
-    ln -sf /usr/bin/pip3 /usr/local/bin/pip
+    export CUDAHOSTCXX=/usr/bin/g++
+    export TORCH_NVCC_FLAGS="--compiler-bindir=/usr/bin/g++"
 
-    python -m pip install --no-cache-dir -U pip
+    python3.10 -m pip install --no-cache-dir -U pip setuptools wheel ninja \
+        pyyaml typing_extensions numpy
 
-    python -m pip install --no-cache-dir chai_lab==0.6.1 \
-        --extra-index-url https://download.pytorch.org/whl/cu121
+    cd /opt
+    git clone --recursive https://github.com/pytorch/pytorch.git
+    cd pytorch
+    git checkout v2.4.0
+    git submodule sync --recursive
+    git submodule update --init --recursive
+    git clean -xdf
 
-    CHAI_CACHE_DIR="/opt/chai_lab_downloads"
-    mkdir -p "${CHAI_CACHE_DIR}/esm"
-    mkdir -p "${CHAI_CACHE_DIR}/models_v2"
-    echo "Downloading conformers_v1.apkl..."
-    wget -q -O "${CHAI_CACHE_DIR}/conformers_v1.apkl" \
-        https://chaiassets.com/chai1-inference-depencencies/conformers_v1.apkl
+    export TORCH_CUDA_ARCH_LIST="9.0"
+    export USE_CUDA=1
+    export MAX_JOBS=$(nproc)
 
-    wget -q -O "${CHAI_CACHE_DIR}/esm/traced_sdpa_esm2_t36_3B_UR50D_fp16.pt" \
-        https://chaiassets.com/chai1-inference-depencencies/esm2/traced_sdpa_esm2_t36_3B_UR50D_fp16.pt
+    python3.10 setup.py bdist_wheel
 
-    CHAI_MODELS_BASE_URL="https://chaiassets.com/chai1-inference-depencencies/models_v2"
+    mkdir -p /wheels
+    cp dist/torch-*.whl /wheels/
 
-    for model_comp in \
-        "feature_embedding.pt" \
-        "bond_loss_input_proj.pt" \
-        "token_embedder.pt" \
-        "trunk.pt" \
-        "diffusion_module.pt" \
-        "confidence_head.pt"
-    do
-        wget -O "${CHAI_CACHE_DIR}/models_v2/${model_comp}" \
-            "${CHAI_MODELS_BASE_URL}/${model_comp}"
+Bootstrap: docker
+From: nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
+
+%files from builder
+    /wheels/torch-*.whl  /wheels/
+
+%post
+    set -eux
+    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        python3.10 python3-pip kalign git wget ca-certificates libopenblas0 cuda-command-line-tools-12-4 && \
+    rm -rf /var/lib/apt/lists/*
+
+    python3.10 -m pip install --no-cache-dir -U pip
+
+    python3.10 -m pip install --no-cache-dir /wheels/torch-*.whl
+
+    python3.10 -m pip install --no-cache-dir chai_lab==0.6.1
+
+    CHAI=/opt/chai_lab_downloads
+    mkdir -p $CHAI/esm $CHAI/models_v2
+    wget -q -O $CHAI/conformers_v1.apkl \
+         https://chaiassets.com/chai1-inference-depencencies/conformers_v1.apkl
+    wget -q -O $CHAI/esm/traced_sdpa_esm2_t36_3B_UR50D_fp16.pt \
+         https://chaiassets.com/chai1-inference-depencencies/esm2/traced_sdpa_esm2_t36_3B_UR50D_fp16.pt
+    base=https://chaiassets.com/chai1-inference-depencencies/models_v2
+    for f in feature_embedding.pt bond_loss_input_proj.pt token_embedder.pt \
+             trunk.pt diffusion_module.pt confidence_head.pt; do
+        wget -q -P $CHAI/models_v2 $base/$f
     done
+    chmod -R a+rX $CHAI
 
-    chmod -R a+rX "${CHAI_CACHE_DIR}"
+    rm -rf /root/.cache /wheels
+    find /usr/local/lib/python3.10 -name '__pycache__' -exec rm -rf {} +
 
 %environment
-    # Point Chai-1 to the pre-downloaded assets
+    export PYTHONNOUSERSITE=1
     export CHAI_DOWNLOADS_DIR=/opt/chai_lab_downloads
-
-    # Set cache directories for numba and matplotlib to writable locations
     export NUMBA_CACHE_DIR=/tmp/numba_cache
     export MPLCONFIGDIR=/tmp/matplotlib_cache
-
+    export DISABLE_PANDERA_IMPORT_WARNING=True
     unset LD_PRELOAD
 
+%labels
+    Author      vmathew
+    Description "Chai‑Lab container with PyTorch v2.4.0 built for CUDA 12.4 / SM 8.9 (Grace‑Hopper)"
+
 %runscript
-    echo "Chai-1 Lab Singularity container (ARM64 for Grace Hopper)"
-    echo "CHAI_DOWNLOADS_DIR is set to: ${CHAI_DOWNLOADS_DIR}"
-    echo "To run chai-lab, use a command like: singularity exec chai_lab_arm64.sif chai-lab fold ..."
-    exec "$@"
+    echo "Chai‑Lab (source‑built CUDA torch) – ready!"
+    echo "Example:"
+    echo "  singularity exec --nv \$SINGULARITY_CONTAINER \\"
+    echo "       chai-lab fold --use-msa-server --use-templates-server seq.fasta out_dir"
+    exec "\$@"

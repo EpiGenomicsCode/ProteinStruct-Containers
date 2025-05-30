@@ -15,7 +15,7 @@ This repository contains scripts to build Singularity containers for popular pro
     - Container includes pre-downloaded model weights.
     - Supports MSA generation via ColabFold API.
 - **Chai-1:**
-    - ARM64 support (already available via pip, but container offers a pre-configured environment).
+    - ARM64 support introduced.
     - x86_64 support.
     - Container includes pre-downloaded model weights.
     - Supports MSA generation via ColabFold API.
@@ -215,21 +215,68 @@ The `alphafold3/run_alphafold3_launcher.py` script provides a convenient way to 
     *   `--run_inference=false`: Skip the inference step.
     *   Run `python alphafold3/run_alphafold3_launcher.py --help` to see all available options.
 
-### Running Boltz Predictions
-(TODO: Needs to be filled in)
+### Running Boltz Predictions (using Launcher Script)
 
-Example:
-```bash
-singularity run --nv boltz_arm.sif boltz <boltz_arguments>
-```
+The `boltz/run_boltz_launcher.py` script provides a convenient way to run predictions using the Boltz Singularity container.
 
-### Running Chai Lab's Model Predictions
-(TODO: Needs to be filled in.)
+1.  **Prerequisites:**
+    *   Python 3.x
+    *   `spython` and `absl-py` Python libraries: `pip install spython absl-py`
+    *   A built Singularity container for your architecture (e.g., `boltz_arm.sif` or `boltz_x86.sif`), typically located in your specified build directory.
 
-Example:
-```bash
-singularity run --nv chai_lab_arm.sif <chai_lab_executable> <arguments>
-```
+2.  **Configuration:**
+    *   Update the `_BOLTZ_SIF_PATH` variable inside `boltz/run_boltz_launcher.py` to point to your appropriate architecture-specific SIF file, OR set the `BOLTZ_SIF` environment variable.
+
+3.  **Execution:**
+    ```bash
+    python boltz/run_boltz_launcher.py \
+        --input_data=/path/to/your/input.fasta \
+        --out_dir=/path/to/output \
+        [--other-flags...]
+    ```
+    Replace the example paths with your actual paths.
+
+    **Key Flags:**
+    *   `--sif_path`: Path to the Boltz Singularity image SIF file (overrides environment variable and hardcoded path).
+    *   `--input_data`: (Required) Input data file or directory (FASTA/YAML).
+    *   `--out_dir`: Output directory for predictions.
+    *   `--boltz_cache_dir`: Directory for Boltz to download data/models (defaults to `$BOLTZ_CACHE` or `~/.boltz`).
+    *   `--checkpoint`: Optional path to a model checkpoint file.
+    *   `--use_gpu`: Enable NVIDIA runtime for GPU usage (default: True).
+    *   `--gpu_devices`: Comma-separated list of GPU devices for `NVIDIA_VISIBLE_DEVICES`.
+    *   Refer to the script's help for more specific Boltz arguments like `--recycling_steps`, `--sampling_steps`, `--use_msa_server`, etc.
+    *   Run `python boltz/run_boltz_launcher.py --help` to see all available options.
+
+### Running Chai Lab's Model Predictions (using Launcher Script)
+
+The `chai_1/run_chailab_launcher.py` script offers a user-friendly way to execute predictions with the Chai-1 Singularity container.
+
+1.  **Prerequisites:**
+    *   Python 3.x
+    *   `spython` and `absl-py` Python libraries: `pip install spython absl-py`
+    *   A built Singularity container for your architecture (e.g., `chai_lab_arm.sif` or `chai_lab_x86.sif`), typically located in your specified build directory.
+
+2.  **Configuration:**
+    *   Update the `_CHAI_SIF_PATH` variable inside `chai_1/run_chailab_launcher.py` to point to your SIF file, OR set the `CHAI_SIF` environment variable.
+
+3.  **Execution:**
+    ```bash
+    python chai_1/run_chailab_launcher.py \
+        --fasta_file=/path/to/your/sequence.fasta \
+        --output_dir=/path/to/chai_output \
+        [--other-flags...]
+    ```
+    Replace the example paths with your actual paths.
+
+    **Key Flags:**
+    *   `--sif_path`: Path to the Chai Lab Singularity image SIF file (overrides environment variable and hardcoded path).
+    *   `--fasta_file`: (Required) Path to the input FASTA file.
+    *   `--output_dir`: Path to a directory for storing results.
+    *   `--force_output_dir`: If True, use the exact output directory even if non-empty.
+    *   `--use_gpu`: Enable NVIDIA runtime for GPU usage (default: True).
+    *   `--gpu_devices`: Comma-separated list of GPU devices for `NVIDIA_VISIBLE_DEVICES`.
+    *   Refer to the script's help for more specific Chai Lab arguments like `--msa_directory`, `--constraint_path`, `--num_diffn_samples`, etc.
+    *   Run `python chai_1/run_chailab_launcher.py --help` to see all available options.
 
 ## Acknowledgements
 - AlphaFold by DeepMind Technologies Limited
