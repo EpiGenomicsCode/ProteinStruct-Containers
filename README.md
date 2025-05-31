@@ -63,7 +63,7 @@ AlphaFold 3 requires large sequence and structure databases to function.
 The Boltz container comes with pre-downloaded model weights (`ccd.pkl` and `boltz1_conf.ckpt`) stored in `/opt/boltz_cache` within the container. No separate download is required for the weights if using the container.
 
 ### Chai-1
-The Chai-1 container also includes pre-downloaded model weights. Specific paths and details can be found in the respective definition file.
+The Chai-1 container also includes pre-downloaded model weights, which are stored in `/opt/chai_lab_downloads` within the container. No separate download is required for these weights when using the container.
 
 ## Files
 
@@ -77,9 +77,11 @@ This repository is structured as follows:
 -   `boltz/`: Directory containing files specific to Boltz.
     -   `boltz_arm.def`: Singularity definition file for ARM64 systems.
     -   `boltz_x86.def`: Singularity definition file for x86 systems.
+    -   `run_boltz_launcher.py`: Python script for convenient execution of the Boltz container.
 -   `chai_1/`: Directory containing files specific to Chai-1.
     -   `chai_lab_arm.def`: Singularity definition file for ARM64 systems (note the `chai_lab` prefix).
     -   `chai_lab_x86.def`: Singularity definition file for x86 systems (note the `chai_lab` prefix).
+    -   `run_chailab_launcher.py`: Python script for convenient execution of the Chai-1 container.
 
 ## Pre-built Containers (Sylabs Cloud)
 
